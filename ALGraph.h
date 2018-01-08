@@ -10,7 +10,7 @@
 #include<iostream>
 #include<string>
 #include<assert.h>
-#define MaxFileSize 50
+#define MAXFILESIZE 50
 typedef struct Time {
     //时间格式: hour:minute,day
     int day;
@@ -71,15 +71,15 @@ public:
     ~ALGraph();
     int searchCityNum(const std::string CityName); //查询城市编号
     void addCity(const std::string CityName); //手动添加城市
-    void addCityFromFile(const char FileName[MaxFileSize]); //从文件读取以添加城市
+    void addCityFromFile(const char FileName[MAXFILESIZE]); //从文件读取以添加城市
     void insert(std::string StartName, LineNode* temp, std::string EndName ); //插入线路
     void addLine(); //添加线路
-    void addLineFromFile(const char FileName[MaxFileSize]); //从文件读取以添加线路
+    void addLineFromFile(const char FileName[MAXFILESIZE]); //从文件读取以添加线路
     void reSize(int size); //重新分配城市列表，仅考虑城市增多情况
     void delCityLine(int i); //删除以城市为起点的线路
     void delLine(); //删除线路
     void delCity(std::string CityName); //删除城市，并删除以该城市为起点的航班和列车
-    void updateFile(const char FileName[MaxFileSize], const std::string type); //修改后更新文件
+    void updateFile(const char FileName[MAXFILESIZE], const std::string type); //修改后更新文件
 
     void showCity(); //输出所有城市
     void showLine(); //输出所有线路

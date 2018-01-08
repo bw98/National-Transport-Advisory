@@ -107,7 +107,7 @@ void ALGraph::addCity (const string CityName) {
 }//addCity
 
 //从文件中读取以添加城市
-void ALGraph::addCityFromFile (const char FileName[MaxFileSize]) {
+void ALGraph::addCityFromFile (const char FileName[MAXFILESIZE]) {
     cout << "开始从 " << FileName << "中读入并添加城市！" << endl;
     ifstream file(FileName); //打开失败返回NULL
     if (!file) {
@@ -194,7 +194,7 @@ void ALGraph::insert (string StartName, LineNode *temp, string EndName) {
 }//insert
 
 //从文件中读取以添加线路
-void ALGraph::addLineFromFile (const char FileName[MaxFileSize]) {
+void ALGraph::addLineFromFile (const char FileName[MAXFILESIZE]) {
    cout << "从" << FileName << "中读取并导入线路！" << endl;
     ifstream file(FileName);
     if(!file) {
@@ -341,8 +341,7 @@ void ALGraph::delLine() {
 }//delLine 
 
 //把修改完毕的数据更新到文件中
-void ALGraph::updateFile(const char FileName[MaxFileSize], const string type) {
-    cout << "同步数据到" << FileName << "文件!" << endl;
+void ALGraph::updateFile(const char FileName[MAXFILESIZE], const string type) {
     ofstream file(FileName);
     if (!file) {//判断文件是否存在并能打开
         cout << "不能打开文件" << FileName << " ，只能写入已存在的文件" << FileName << "，请确认文件是否存在！" << endl;
