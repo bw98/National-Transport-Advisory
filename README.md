@@ -23,8 +23,9 @@
 - 求最少时间路径
 ### 4.核心算法 dijkstra 分析
 - 如果想理解我代码中的核心算法部分，推荐看一下我的博客，博文里有本项目运用 dijkstra 算法的分析。博文链接：[dijkstra 最小路径算法](http://www.cnblogs.com/Bw98blogs/p/8205445.html "dijkstra 最小路径算法")
-
-### 5.截图
+### 5.项目的总结性报告
+- 我在文件夹 [Report](https://github.com/bw98/National-Transport-Advisory/tree/master/Report "Report") 里放了关于这次项目的设计思路以及函数的主要功能、数据流程图，如果对我项目的部分细节有疑惑，可以 clone 后仔细阅读 report.pdf
+### 6.截图
 ![部分线路截图](https://images2017.cnblogs.com/blog/1199740/201801/1199740-20180105114038628-1177620256.png "部分线路截图")
 
 
