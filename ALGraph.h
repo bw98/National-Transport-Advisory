@@ -86,6 +86,7 @@ public:
     void dijkstra_Money(int v0, int *parent, Node *dis); //最小花费路径
     int timeTransWeight (const Time& t); //时间转化为权值,即转化为分钟
     void dijkstra_Time(int v0, int *parent, Node1 *dis); //最小时间路径
+    //void bfs_Transit (); //最小中转次数以及路径
     void showShortestPath(const std::string type); //调用并打印最短路径
 
 private:

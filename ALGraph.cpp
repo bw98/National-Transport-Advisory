@@ -330,7 +330,6 @@ void ALGraph::delLine() {
     //2.名字相等的情况
     else {
         p->NextLine = q->NextLine; 
-        //p->NextLine = q;
         CityList[StartNum].Amount--;
         ArcNum--;
         delete q->Info;

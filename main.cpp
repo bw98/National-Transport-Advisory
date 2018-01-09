@@ -42,6 +42,7 @@ int main(void) {
                 system("clear");
                 break;
             default:
+                cout << "输入不正确，请重新输入" << endl;
                 break;
         }//switch(identity)
     }//while (indentity)
@@ -69,7 +70,6 @@ void admin() {
         switch (option) {
             case 1:
                 changePassword();
-                system("clear");
                 break;
             case 2:
             case 3:
@@ -136,6 +136,8 @@ void adminALG (int option) {
         cout << "    7.显示所有城市" << endl;
         cout << "    8.显示所有线路" << endl;
         cout << "    9.保存修改到文件" << endl;
+	cout << "    10.查询花费最少的路径" << endl;
+        cout << "    11.查询耗时最少的路径" << endl;
         cout << "请输入数字(输入0退出操作界面)：";
         cin >> func;
         cout << endl;
@@ -147,44 +149,52 @@ void adminALG (int option) {
         }
         switch(func) {
             case 1:    
-                cout << "    1.从文件中添加 " << tool[option-2] << " 城市" << endl;
+                cout << "    1.从文件中添加 " << tool[option-2] << " 城市!" << endl;
                 ALG[option-2].addCityFromFile (cityfile[option-2]);
                 break;
             case 2:
-                cout << "    2.手动添加 " << tool[option-2] << " 城市" << endl;
+                cout << "    2.手动添加 " << tool[option-2] << " 城市!" << endl;
                 cin >> name;
                 ALG[option-2].addCity(name);
                 break;
             case 3:
-                cout << "    3.删除" << tool[option-2] << " 城市" << endl;
+                cout << "    3.删除" << tool[option-2] << " 城市!" << endl;
                 cin >> name;
                 ALG[option-2].delCity(name);
                 break;
             case 4:
-                cout << "    4.从文件中添加" << tool[option-2] << " 线路" << endl;
+                cout << "    4.从文件中添加" << tool[option-2] << " 线路!" << endl;
                 ALG[option-2].addLineFromFile (linefile[option-2]);
                 break;
             case 5:
-                cout << "    5.手动添加 " << tool[option-2] << " 线路" << endl;
+                cout << "    5.手动添加 " << tool[option-2] << " 线路!" << endl;
                 ALG[option-2].addLine();
                 break;
             case 6:
-                cout << "    6.删除" << tool[option-2] << " 线路" << endl;
+                cout << "    6.删除" << tool[option-2] << " 线路!" << endl;
                 ALG[option-2].delLine(); //删除线路
                 break;
             case 7:
-                cout << "    7.显示所有城市" << endl;
+                cout << "    7.显示所有城市!" << endl;
                 ALG[option-2].showCity();
                 break;
             case 8:
-                cout << "    8.显示所有线路" << endl;
+                cout << "    8.显示所有线路!" << endl;
                 ALG[option-2].showLine();
                 break;
             case 9:
-                cout << "    9.保存修改到文件" << endl;
+                cout << "    9.保存修改到文件!" << endl;
                 ALG[option-2].updateFile(cityfile[option-2], "City");
                 ALG[option-2].updateFile(cityfile[option-2], "Line");
                break;
+	        case 10:
+		    cout << "    10.查询花费最少的路径!" << endl;
+		    ALG[option-2].showShortestPath("Money");
+		    break;
+	        case 11:
+        	cout << "    11.查询耗时最少的路径!" << endl;
+		    ALG[option-2].showShortestPath("Time");
+		    break;
             default:
                 cout << "输入不正确，请重新输入" << endl;
                 break;
@@ -205,6 +215,10 @@ void user() {
         if (!t) {
             break;
         }
+        if (t != 1 && t !=2) {
+            cout << "输入不正确，请重新输入！" << endl;
+            continue;
+        }
         cout << endl;
         while (func) {
             cout << "    现在是关于全国" << tool[t-1] << "的信息查询！" << endl;
@@ -215,7 +229,9 @@ void user() {
             cout << "    4.显示所有线路" << endl;
             cout << "请输入数字(按0返回选择交通工具界面):";
             cin >> func;
-            if (!func) {break;}
+            if (!func) {
+                break;
+            }
             cout << endl;
             switch(func) {
                 case 1: 
@@ -236,9 +252,10 @@ void user() {
                     break;
                 default:
                     cout << "输入不正确，请重新输入！" << endl;
+                    break;
             }//switch(func)
             cout << endl;
-            system("clear");
+            
         }//while(func)
     }//while(t)
 }//user 
