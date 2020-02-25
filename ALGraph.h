@@ -1,98 +1,116 @@
-/*************************************************************************
-	> File Name: Algraph.h
-	> Author: bw98
-	> Mail: 
-	> Created Time: 2018年01月02日 星期二 08时32分45秒
- ************************************************************************/
-
 #ifndef _ALGRAPH_H
 #define _ALGRAPH_H
 #include<iostream>
+#include<vector>
+#include<map>
 #include<string>
 #include<assert.h>
 #define MAXFILESIZE 50
-typedef struct Time {
-    //时间格式: hour:minute,day
-    int day;
+struct Time {
+    //时间格式: hour:minute,+day
     int hour;
     int minute;
-    //运算符'-'重载，实现两Time对象做减法
-    friend Time operator - (Time &et, Time &st) {
-        Time t = {0, 0, 0};
-        t.minute = et.minute - st.minute;
-        if (t.minute < 0) {
-            t.minute += 60;
-            t.hour--;
-        }
-        
-        t.hour = t.hour + et.hour - st.hour;
-        if (t.hour < 0) {
-            t.hour += 24;
-            t.day--;
-        }
-        //由于默认日期的问题会造成不同天的时刻相减可能为负数，所以当时刻表相减为负数时需要让天数加一
-        //比如甘肃到北京 T100 8:00,+0 10:00,+1  北京到长春 T101 7:00,+0 T102 8:30,+0 15:10,+0
-        //实际上需要到北京后要再等待一天才能到，中途等待时间应该是 '7:00,+1' - '2:00,+1'
-        if (et.day < st.day) {
-            t.day++;
-        }
-        t.day = t.day + et.day - st.day;
-        return t;
+    int day;
+
+    Time (const int h=0, const int min=0, const int d=0) : hour(h), minute(min), day(d) {}
+    Time (const Time &obj) : hour(obj.hour), minute(obj.minute), day(obj.day) {}
+
+    void swap (Time &lt, Time &rt) {
+        std::swap (lt.day, rt.day);
+        std::swap (lt.hour, rt.hour);
+        std::swap (lt.minute, rt.minute);
     }
-}Time;
 
-typedef struct InfoType {//边上信息
-    std::string LineName; //航班或车次号，最多8字符(含\0) 
-    Time StartTime, EndTime; //出发时间与目的时间
-    Time SpendTime; //线路上花费的时间
-    float SpendMoney; //票价
-}TrafficLine;
+    Time& operator = (Time robj) {
+        swap(*this, robj);
+        return *this;
+    }
 
-typedef struct ArcNode {//表结点，边表
-    std::string EndName; //该弧末尾的城市
-    struct ArcNode *NextLine; //沿弧指向后继表结点的指针
-    TrafficLine *Info; //该弧的路线信息 
-}LineNode;
+    int getTotalMintue () const {
+        return this->day * 1440 + this->hour * 60 + this->minute;
+    }
 
-typedef struct VNode {//头结点,顶点表
-    std::string CityName; //地名
-    int CityOrd; //城市编号,便于匹配
-    LineNode *FirstLine;//沿第一条弧指向后继表结点的指针
-    int Amount;//交通工具班次
-}VNode;
+};
 
- //顶点节点，保存id和到源顶点的估算距离,优先队列需要的类型
-struct Node; //计算最小花费
-struct Node1; //计算最小路径
+struct LineNode {  // 线路信息，作为边表的元素
+    
+    LineNode (const std::string scn, const std::string ecn, const Time st, const Time et, const Time spend_t, 
+            const float spend_m, const std::string amt) 
+            : start_city_name(scn), end_city_name(ecn), 
+            start_time(st), end_time(et), spend_time(spend_t), spend_money(spend_m), amount(amt) {}
 
-class ALGraph{
-public:
-    ALGraph(int size);
-    ~ALGraph();
-    int searchCityNum(const std::string CityName); //查询城市编号
-    void addCity(const std::string CityName); //手动添加城市
-    void addCityFromFile(const char FileName[MAXFILESIZE]); //从文件读取以添加城市
-    void insert(std::string StartName, LineNode* temp, std::string EndName ); //插入线路
-    void addLine(); //添加线路
-    void addLineFromFile(const char FileName[MAXFILESIZE]); //从文件读取以添加线路
-    void reSize(int size); //重新分配城市列表，仅考虑城市增多情况
-    void delCityLine(int i); //删除以城市为起点的线路
-    void delLine(); //删除线路
-    void delCity(std::string CityName); //删除城市，并删除以该城市为起点的航班和列车
-    void updateFile(const char FileName[MAXFILESIZE], const std::string type); //修改后更新文件
+    std::string start_city_name;
+    std::string end_city_name;
+    Time start_time, end_time;
+    Time spend_time;
+    float spend_money;
+    std::string amount;  // 火车或飞机的班次
+};
 
-    void showCity(); //输出所有城市
-    void showLine(); //输出所有线路
-    void dijkstra_Money(int v0, int *parent, Node *dis); //最小花费路径
-    int timeTransWeight (const Time& t); //时间转化为权值,即转化为分钟
-    void dijkstra_Time(int v0, int *parent, Node1 *dis); //最小时间路径
-    //void bfs_Transit (); //最小中转次数以及路径
-    void showShortestPath(const std::string type); //调用并打印最短路径
+struct Vnode {  // 顶点表中的头结点，存储始发站的信息
 
-private:
-    VNode *CityList; //用链表数组表示城市列表
-    int CityNum; //城市个数，即顶点数
-    int MaxCityNum; //当前最大城市个数
-    int ArcNum; // 弧个数
+    Vnode (const std::string scn, const int cid) : start_city_name(scn), city_id(cid) {}
+    Vnode (const char* scn, const int cid) : start_city_name(scn), city_id(cid) {}
+    Vnode (const std::string scn) : start_city_name(scn), city_id(-1) {}
+    Vnode (const char* scn) : start_city_name(scn), city_id(-1) {}
+    
+    std::string start_city_name;  // 地名
+    int city_id;  // 城市编号,从0开始，便于匹配
+
+};
+
+struct cmp_vnode {  // 定义从 Vnode 映射 vector<InfoType> 的 map 的关键字比较关系
+	bool operator() (const Vnode& x, const Vnode& k) const {
+			if(x.start_city_name >= k.start_city_name)
+			return false;  //STL源码规定必须这么返回，而不能改成 true
+			else
+			return true;
+	}
+};
+
+
+class ALGraph {
+    public:
+        bool ifCityExist (const std:: string &city_name);  // 查询城市是否存在
+        int searchCityNum (const std::string &city_name);  // 查询城市编号
+        void addCity (const std::string &city_name);  // 手动添加城市
+        void addCityFromFile (const char FILENAME[MAXFILESIZE]);  // 从文件读取以添加城市
+        void addLine();  // 手动添加线路
+        void addLineFromFile(const char FILENAME[MAXFILESIZE]);  // 从文件读取以添加线路
+
+        // 删除线路，需要手动输入起点与终点
+        void delLine(const std::string &sc, const std::string &ec, const std::string &amt);  
+        // 删除城市，并删除以该城市为起点的航班和列车信息
+        void delCity(const std::string &city_name);  
+        //void updateFile(const char FileName[MAXFILESIZE], const std::string type);  // 修改后更新文件
+
+        void showAllCity();  // 输出所有城市
+        void showAllLine();  // 输出所有线路
+
+        // 返回从起点城市到终点城市的所有路径
+        std::vector<std::vector<LineNode>> getPathsByCity (const std::string &sc, const std::string &ec);
+
+        // 打印从起点城市到终点城市的所有路径
+        void printPathsByCity (const std::string &sc, const std::string &ec);
+        
+        // 输出从起点城市到终点城市，中转次数最少的路径
+        void printLeastTransferPath (const std::string &sc, const std::string &ec);  
+        
+        // 输出从起点城市到终点城市，花费最小的线路
+        void printLeastMoneyPath (const std::string &sc, const std::string &ec);  
+
+        // 输出从起点城市到终点城市，总时间最短的线路
+        void printLeastTimePath (const std::string &sc, const std::string &ec);
+        
+    private:
+        // 定义从 Vnode 映射 vector<InfoType> 的 map, 关键字为 Vnode 中的 start_city_name，关键字的关系为 cmp_vnode
+        std::map <Vnode, std::vector<LineNode>, cmp_vnode > m;
+
+        int city_num;
+        int line_num;
+
+        // 通过起点城市、终点城市、班次，查询一条线路信息
+        std::vector<LineNode> getLineNode (const std::string sc, const std::string ec, const std::string amt);
+
 };
 #endif

@@ -1,19 +1,73 @@
-/*************************************************************************
-	> File Name: ALGraph.cpp
-	> Author: bw98
-	> Mail: 
-	> Created Time: 2018年01月02日 星期二 09时49分43秒
- ************************************************************************/
 #include"ALGraph.h"
 #include<iostream>
 #include<string>
+#include<vector>
+#include<map>
+#include<set>
 #include<fstream>
 #include<sstream>
 #include<iomanip>
 #include<queue>
 #include<stack>
-using namespace std;
+#include<algorithm>
 #define INF 0xfffff
+
+using std::cin;
+using std::cout;
+using std::endl;
+using std::istream;
+using std::ostream;
+using std::istringstream;
+using std::setw;
+using std::setiosflags;
+using std::resetiosflags;
+using std::ios_base;
+using std::ifstream;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
+using std::pair;
+using std::make_pair;
+
+const Time getTimeByMinute (int minute) {
+    int day = minute / 1440;
+    minute -= day * 1440;
+    int hour = minute / 60;
+    minute -= hour * 60;
+    return Time(hour, minute, day);
+}
+
+// Time 对象的"<"重载，实现两个 Time 对象的比较
+bool operator < (Time t1, Time t2) {
+    return ((t1.day * 1440 + t1.hour * 60 + t1.minute) < (t2.day *1440 + t2.hour * 60 + t2.minute));
+}
+
+// Time 对象的"-"重载，实现两 Time 对象做减法，默认 t2 晚于 t1 时才可以做减法
+Time operator - (Time t1, Time t2) throw (std::runtime_error) {
+
+    if (t1 < t2) {
+        throw std::runtime_error ("Time Operator - 运算中 t1 小于 t2，结果将是负数!");
+    }
+
+    Time tmp_t;
+    
+    tmp_t.minute = t1.minute - t2.minute;
+    if (tmp_t.minute < 0) {     
+        tmp_t.minute += 60;
+        --t1.hour;
+    }
+    
+    tmp_t.hour = t1.hour - t2.hour;
+    if (tmp_t.hour < 0) {
+        tmp_t.hour += 24;
+        --t1.day;
+    }
+    
+    tmp_t.day = t1.day - t2.day;
+    
+    return tmp_t;
+}
 
 //'>>' 重载，实现"hour:minute,+day" 的存储
 istream& operator >> (istream &in, Time &time) {
@@ -26,179 +80,159 @@ istream& operator >> (istream &in, Time &time) {
     return in;
 } 
 
-//运算元'<<'重载以美化 Time 对象的输入
-ostream& operator << (ostream &out, Time &time) {
+//运算符'<<'重载以美化 Time 对象的输入
+ostream& operator << (ostream &out, const Time &time) {
     //数据之间空白用'0'填充
     cout.fill('0');
+
     //数据的右对齐与天数的'+'号
-    out << setw(2) << setiosflags(ios_base::right) <<time.hour << ":" << setw(2) << time.minute << resetiosflags(ios_base::right) << "," << setiosflags(ios_base::showpos) << time.day << resetiosflags(ios_base::showpos); //setiosflags(ios_base::showpos) 表示 "+" 正号
+    out << setw(2) << setiosflags(ios_base::right) <<time.hour << ":" 
+        << setw(2) << time.minute << resetiosflags(ios_base::right) 
+        << "," << setiosflags(ios_base::showpos) << time.day << resetiosflags(ios_base::showpos); //setiosflags(ios_base::showpos) 表示 "+" 正号
+
     cout.fill(' '); //fill setiosflags 需手动关闭
+
     return out;
 } 
 
-ALGraph::ALGraph (int size) { 
-    CityList = new VNode[size];
-    int i;
-    for (i = 0; i < size; ++i) {
-        CityList[i].CityName = "NULL";
-        CityList[i].CityOrd = i;
-        CityList[i].FirstLine = NULL;
-        CityList[i].Amount = 0;
-    }
-    CityNum = 0;
-    MaxCityNum = size;
-    ArcNum = 0;
-}//ALGraph::ALGraph (int size)  
+//运算符'<<'重载以美化 LineNode 对象的输入
+ostream& operator << (ostream &out, const LineNode &line) {
 
-//析构函数
-ALGraph::~ALGraph() {
-    delete []CityList;
+    cout << "出发城市|到达城市|班次名|出发时间|到达时间|路程用时|路程票价" << endl;
+    cout << setw(10) << line.start_city_name << " " <<  setw(10) << line.end_city_name 
+        << " " << setw(6) << line.amount << " ";
+    cout.fill('0'); // 修改 fill() 的默认填充符为 0
+    cout << line.start_time << " " << line.end_time << " " << line.spend_time << " "
+        << setiosflags(ios_base::showpoint) << line.spend_money << endl;
+    cout.fill(' '); // fill() 不像 setw(), 需要手动调整
+
+    return out;
+} 
+
+//查询城市是否存在
+bool ALGraph::ifCityExist (const std::string &city_name) {  // 查询城市是否存在
+
+    auto it = m.find(Vnode(city_name));
+    if (it != m.cend()) {
+        return true;
+    } else {
+        return false;
+    }
+
 }
 
+
 //查询城市编号，找到返回序号，找不到返回-1
-int ALGraph::searchCityNum (const string CityName) {
-    int i;
-    for (i = 0; i < CityNum; ++i) {
-        if (CityList[i].CityName == CityName) {
-            return i;
+int ALGraph::searchCityNum (const string &city_name) {
+    
+    auto it = m.cbegin();
+    while (it != m.cend()) {
+        if (city_name == it->first.start_city_name) {
+            return (*it).first.city_id;
         }
+
+        ++it;
     }
+
     return -1;
 }//searchCityNum 
 
-//调整图存储的大小，只考虑了城市增加情况
-void ALGraph::reSize(int size) {
-    if (size <= CityNum) {
+// 手动添加城市
+void ALGraph::addCity (const string &city_name) {
+
+    if (ifCityExist(city_name)) {
+        cout << "该城市已经存在，无需重复添加！" << endl;
         return;
     }
-    VNode *NewList = new VNode[size];
-    int i;
-    for (i = 0; i < CityNum; ++i) {
-        NewList[i] = CityList[i]; //C++可以直接赋值
+    
+    try {
+        m.insert( {Vnode(city_name, city_num), vector<LineNode>() } );
+        ++city_num;
+    } catch (std::runtime_error err) {
+        cout << "添加城市时报错（可能是城市已存在），报错信息如下：" << err.what() << endl;
     }
-    for (i = CityNum; i < size; ++i) {
-        CityList[i].CityName = "NULL";
-        CityList[i].CityOrd = i;
-        CityList[i].FirstLine = NULL;
-        CityList[i].Amount = 0;
-    }
-    delete []CityList;
-    CityList = NewList;
-    MaxCityNum = size;
-}//reSize 
+}
 
-//手动添加城市
-void ALGraph::addCity (const string CityName) {
-    //已存在城市
-    if (searchCityNum(CityName) != -1) {
-        cout << "The city has in the list!!!" << endl;
-        return;
-    }
-    //空间已满
-    if (CityNum >= MaxCityNum) {
-        ++MaxCityNum;
-        reSize(MaxCityNum);
-    }
-    CityList[CityNum].CityName = CityName;
-    CityList[CityNum].CityOrd = CityNum;
-    CityList[CityNum].FirstLine = NULL;
-    CityList[CityNum].Amount = 0;
-    ++CityNum;
-}//addCity
-
-//从文件中读取以添加城市
-void ALGraph::addCityFromFile (const char FileName[MAXFILESIZE]) {
-    cout << "开始从 " << FileName << "中读入并添加城市！" << endl;
-    ifstream file(FileName); //打开失败返回NULL
+// 从文件中读取以添加城市
+void ALGraph::addCityFromFile (const char FILENAME[MAXFILESIZE]) { 
+    
+    cout << "开始从" << FILENAME << "中读入并添加城市！" << endl; 
+    ifstream file (FILENAME);  // 打开失败返回NULL
     if (!file) {
-        cout << "打开失败!" << endl;
+        cout << "打开文件失败！" << endl;
         return;
     }
     
-    string line; //读取第一行数据，第一行是城市总个数
-    getline(file, line);
-    istringstream istr(line); //利用stringstream简化 string 到 int 的类型转换
-    int count;
-    istr >> count;
-    
-    //空间已满
-    if (CityNum + count >= MaxCityNum) {
-        MaxCityNum = CityNum + count;
-        reSize(MaxCityNum);
-    }
-    //从第二行开始读取城市名字
-    while (getline(file,line)) {
-        istringstream istr2(line); //利用istringstream类直接将string输入到name
+    // 读取城市名
+    string line;
+    while (getline(file, line)) {
+        istringstream istr(line);  // 利用 istringstream 类直接将 string 输入到 name
         string name;
-        istr2 >> name;
-        addCity(name);
+        istr >> name;
+        addCity (name);
     }
-    cout << "城市导入完毕！" << endl;
-    file.close(); //读取后关闭文件
+    cout << "城市导入完毕，当前系统中有" << city_num << "个城市！" << endl;
+    file.close();  // 读取后关闭文件
 }//addCityFromFile
 
-//添加线路
+//手动添加线路
 void ALGraph::addLine () {
-    string StartName, EndName;
+    string start_city_name;
     //信息输入
-    cout << "请输入起点城市：" << endl;
-    cin >> StartName;
-    cout << "请输入终点城市：" << endl;
-    cin >> EndName;
-    LineNode *temp = new LineNode;
-    TrafficLine *info = new TrafficLine;
-    temp->EndName = EndName;
+    cout << "请输入起点城市：";
+    cin >> start_city_name;
+    
+    if (!ifCityExist(start_city_name)) {
+        cout << "起点该城市并不存在，请先创建该城市！" << endl;
+        return;
+    }
+ 
+    string end_city_name;
+    Time start_time, end_time;
+    Time spend_time;
+    float spend_money;
+    string amount;  // 火车或飞机的班次
+
+    cout << "请输入终点城市：";
+    cin >> end_city_name;
+    if (!ifCityExist(end_city_name)) {
+        cout << "终点城市" << end_city_name << "并不存在，请先创建该城市！" << endl;
+        return;
+    }
     cout << "请输入班次名：";
-    cin >> info->LineName;
-    cout << "请输入出发时间:(hh:mm,+d)";
-    cin >> info->StartTime;
-    cout << "请输入到达时间：(hh:mm,+d)";
-    cin >> info->EndTime;
-    info->SpendTime = info->EndTime - info->StartTime;
+    cin >> amount;
+    cout << "请输入出发时间(格式为hh:mm,+d)：";
+    cin >> start_time;
+    cout << "请输入到达时间(格式为hh:mm,+d)：";
+    cin >> end_time;
+
+    if (start_time < end_time) {
+        spend_time = end_time - start_time;
+    } else{
+        cout << "出发时间大于到达时间，输入错误，请重新输入！" << endl;
+        return;
+    }
+
     cout << "请输入票价：";
-    cin >> info->SpendMoney;
-    temp->Info = info;
-    insert (StartName, temp, EndName);
+    cin >> spend_money;
+
+    auto it = m.find(Vnode(start_city_name));
+    if (it != m.end()) {
+        (*it).second.push_back(LineNode (start_city_name, end_city_name, start_time, end_time, 
+                    spend_time, spend_money, amount));
+        cout << "添加路线成功！" << endl;
+    }
+
+    ++line_num;
+
 }//addLine 
 
-//插入线路
-void ALGraph::insert (string StartName, LineNode *temp, string EndName) {
-    int StartNum = searchCityNum(StartName);
-    if (StartNum == -1) {
-        addCity(StartName); //若无城市，则新建
-        StartNum = searchCityNum(StartName);
-    }
-    if (searchCityNum(EndName) == -1) {
-        addCity(EndName); //若无城市，则新建
-    }
-    LineNode *p, *q; //q是p的后继
-    p = CityList[StartNum].FirstLine;
-    
-    //原本没有线路的情况
-    if (p == NULL) { 
-        CityList[StartNum].FirstLine = temp;
-        temp->NextLine = NULL;
-    }
-    //原本有线路的情况
-    else {
-        q = p->NextLine; 
-        while (q != NULL && EndName != q->EndName) {
-            p = q;
-            q = q->NextLine;
-        }
-        p->NextLine = temp;
-        temp->NextLine = q;
-    }
-    CityList[StartNum].Amount++;
-    ArcNum++;
-}//insert
-
 //从文件中读取以添加线路
-void ALGraph::addLineFromFile (const char FileName[MAXFILESIZE]) {
-   cout << "从" << FileName << "中读取并导入线路！" << endl;
-    ifstream file(FileName);
+void ALGraph::addLineFromFile (const char FILENAME[MAXFILESIZE]) {
+    cout << "从" << FILENAME << "中读取并导入线路！" << endl;
+    ifstream file(FILENAME);
     if(!file) {
-        cout << "不能打开文件！" << endl;
+        cout << "打开文件" << FILENAME << "失败！" << endl;
         return;
     }
     string catalogue; //存储第一行的目录
@@ -206,463 +240,593 @@ void ALGraph::addLineFromFile (const char FileName[MAXFILESIZE]) {
     
     //从第二行开始读取真正需要存储的信息
     string line;
+    int temp_line_num = line_num;
     while (getline(file, line)) {
         istringstream istr(line);
-        LineNode *temp = new LineNode;
-        TrafficLine *info = new TrafficLine;
-        temp->Info = info;
-        string StartName,EndName;
-        istr >> StartName >> EndName >> info->LineName >> info->StartTime >> info->EndTime >> info->SpendTime >> info->SpendMoney;
-        info->SpendTime = info->EndTime -info->StartTime;
-        temp->EndName = EndName;
-        insert(StartName, temp, EndName);
-    }//while (getline(file,line))
-    
+        string start_city_name;
+        string end_city_name;
+        Time start_time, end_time;
+        Time spend_time;
+        float spend_money;
+        string amount;  // 火车或飞机的班次
+
+        istr >> start_city_name >> end_city_name >> amount >> start_time >> end_time >> spend_time >> spend_money;
+
+        auto it = m.find(Vnode(start_city_name));
+        if (it != m.end()) {
+            (*it).second.push_back (LineNode (start_city_name, end_city_name, start_time, end_time, spend_time,
+                        spend_money, amount) );
+            ++line_num;
+        }
+    }
     file.close(); //打开存储线路的文件完毕，关闭file
-    cout << "线路导入完毕！" << endl;
+    cout << "从文件" << FILENAME << "中导入了 " << line_num - temp_line_num << " 条路线信息！" << endl;
 }//addLineFromFile
 
-//删除序号i城市为起点的所有路线
-void ALGraph::delCityLine(int i) { 
-    LineNode *p,*q;
-    p = CityList[i].FirstLine;
-    if (p == NULL) { //空表
-        return;
-    }
-    //从第二个表结点开始删
-    while(p->NextLine) {
-        q = p;
-        p = q->NextLine;
-        delete q->Info;
-        delete q;
-    }
-    //删除最后一个结点
-    if (p->NextLine == NULL) {
-        delete p->Info;
-        delete p;
-    }
-}//delCityLine 
+// 删除城市，并删除以该城市为起点与终点的航班和列车
+void ALGraph::delCity (const string &city_name) {
 
-//删除城市，并删除以城市为起点的航班和列车
-void ALGraph::delCity (string CityName) {
-    int i,j;
-    i = searchCityNum(CityName);
-    //未查询到该城市
-    if (i == -1) {
-        cout << "没有找到该城市!" << endl;
-    }
-    else {
-        delCityLine(i); //删除该城市为起点的所有线路
-        for (j = i; j < CityNum-1; ++j) {
-            CityList[j] = CityList[j+1];
-        }
-        --CityNum;
-        cout << "删除 " << CityName << " 成功！ " << endl;
-    }
-}//delCity
-
-void ALGraph::delLine() {
-    string StartName, EndName;
-    int StartNum;
-    cout << "请输入起点城市: ";
-    cin >> StartName;
-    StartNum = searchCityNum(StartName);
-    if (StartNum == -1) {
-        cout << "没有该城市出发的线路!" << endl;
-        return;
-    }
-    cout << "请输入终点城市: ";
-    cin >> EndName;
+    if (!ifCityExist(city_name)) {
     
-    //显示起点城市的所有线路，并判断是否能到达该终点城市
-    bool flag = false;
-    LineNode *p, *q;
-    cout << "起点城市与终点城市的路线有: " << endl;
-    cout << "出发城市|到达城市|班次名|出发时间|到达时间||||用时|||票价" << endl;
-    for (p = CityList[StartNum].FirstLine; p != NULL; p = p->NextLine) {
-        if (p->EndName == EndName) {
-            cout << setw(8) << StartName << " " << setw(8) << EndName << " " << setw(6) << p->Info->LineName << " " << p->Info->StartTime << " " << p->Info->EndTime << " " << p->Info->SpendTime << " " << setiosflags(ios_base::showpoint) << p->Info->SpendMoney << resetiosflags(ios_base::showpoint);
-            flag = true;
-        }
-    }
-    cout << endl;
-    if (flag == false) {
-        cout << "该出发城市没有通往目地城市的班次！" << endl;
+        cout << city_name << "不存在！请重新输入正确的城市名或者新建该城市！" << endl;
         return;
     }
 
-    //该出发城市能到达目地城市，开始删除线路
-    string LineName;
-    cout << "请输入你想要删除的航班号：" << endl;
-    cin >> LineName;
-    p = CityList[StartNum].FirstLine;
-    q = p->NextLine;//q 是 p 的后继
+    cout << "正在删除" << city_name << "城市及其相关线路！" << endl;
+    city_num = city_num - 1;
+
+    // 删除以该城市为起点的线路数据
+    auto key = Vnode(city_name);
+    auto _it = m.find (key);
+    if (_it != m.end()) {
+        line_num = line_num - (*_it).second.size();
+        m.erase(key);
+    }
+
+    // 删除以该城市为终点的线路数据
+    for (auto it = m.begin(); it != m.end(); ++it) {
     
-    //只有一条路，即一个表结点的情况
-    if (q == NULL) {
-        if (p->Info->LineName != LineName) { //唯一一条路不是通往目的地的情况
-            cout << "没有该班次！" << endl;
-            return;
-        }else {
-            CityList[StartNum].FirstLine = q; //注意原内存需要手动释放
-            CityList[StartNum].Amount--;
-            ArcNum--;
-            //删除内存
-            delete p->Info; //将通过指针p,将结构体里的结构体指针指向的内存free掉  
-            delete p; //通过p，将结构体的内存free掉
-            p = NULL; //置指针为NULL,防止野指针
-            return;
-        }
-    }//if(q == NULL)
-    
-    //多个表结点的情况
-    while (q->Info->LineName != LineName && q->NextLine) {
-        p = q;
-        q = q->NextLine;
-    }
-
-    //跳出循环有两种可能 1.名字相等 2.到头了
-    //1.到头了的情况
-    if (q->Info->LineName != LineName) {
-        cout << "没有班次！" << endl;
-        return;
-    }
-    //2.名字相等的情况
-    else {
-        p->NextLine = q->NextLine; 
-        CityList[StartNum].Amount--;
-        ArcNum--;
-        delete q->Info;
-        delete q;
-        return;
-    }
-
-}//delLine 
-
-//把修改完毕的数据更新到文件中
-void ALGraph::updateFile(const char FileName[MAXFILESIZE], const string type) {
-    ofstream file(FileName);
-    if (!file) {//判断文件是否存在并能打开
-        cout << "不能打开文件" << FileName << " ，只能写入已存在的文件" << FileName << "，请确认文件是否存在！" << endl;
-        return;
-    }
-    
-    int i;
-    LineNode * p = NULL;
-    if (type == "City" || type == "城市") {
-        //第一行导入城市个数
-        file << CityNum << endl;
-        for (i = 0; i < CityNum; ++i) {
-            file << CityList[i].CityName << endl;
-        }
-        cout << "将城市信息更新到 " << FileName << " 完成!" << endl;
-    }//更新文件中的城市
-
-    else if (type == "Line" || type == "线路") {
-        file << "出发城市|到达城市|班次名|出发时间|到达时间||||用时|||票价" << endl;
-        for (i = 0; i < CityNum; ++i) {
-            for (p = CityList[i].FirstLine; p != NULL; p = p->NextLine) {
-                file << setw(8) << CityList[i].CityName << " " << setw(8) << p->EndName << " "<< setw(6) << p->Info->LineName << " ";
-                cout.fill('0');
-                file << p->Info->StartTime << " " << p->Info->EndTime << " " << p->Info->SpendTime << " " << setiosflags(ios_base::showpoint) << p->Info->SpendMoney << resetiosflags(ios_base::showpoint);
-                cout.fill(' ');
+        auto &vec = (*it).second;
+        auto beg = vec.begin();
+        while (beg != vec.end()) {
+            if ((*beg).end_city_name == city_name) {
+                beg = vec.erase(beg);
+                line_num = line_num - 1;
+            } 
+            else {
+                ++beg;
             }
         }
-        cout << "将线路信息更新到 " << FileName << " 完成!" << endl;  
-    }//更新文件中的线路
-    file.close();
-}//updateFile 
+    } 
+
+    cout << "已删除" << city_name << "城市及其相关线路！" << endl;
+
+}//delCity
+
+void ALGraph::delLine (const string &sc, const string &ec, const string &amt) {
+
+    if (!ifCityExist(sc)) {
+        cout << sc << "不存在！请重新输入正确的城市名或者新建该城市！" << endl;
+        return;
+    }
+    if (!ifCityExist(ec)) {
+        cout << ec << "不存在！请重新输入正确的城市名或者新建该城市！" << endl;
+        return;
+    }
+    auto line_node_vec = getLineNode(sc, ec, amt);
+    if (line_node_vec.size() == 0) {
+        cout << "从" << sc << "到" << ec << "，班次号为" << amt << "的线路并不存在，请重新输入！" << endl;
+    } 
+
+    cout << "正在删除从" << sc << "到" << ec << "，班次号为" << amt << "的线路！" << endl;
+
+    auto it = m.find(Vnode(sc));
+    for (auto beg = (*it).second.begin(); beg != (*it).second.end(); ++beg) {
+    
+        if ( ((*beg).end_city_name == ec) && ((*beg).amount == amt)) {
+            beg = (*it).second.erase(beg);
+            break;
+        }
+    }
+
+    cout << "已删除从" << sc << "到" << ec << "，班次号为" << amt << "的线路！" << endl;
+
+}//delLine
+
+////把修改完毕的数据更新到文件中
+//void ALGraph::updateFile(const char FileName[MAXFILESIZE], const string type) {
+//    ofstream file(FileName);
+//    if (!file) {//判断文件是否存在并能打开
+//        cout << "不能打开文件" << FileName << " ，只能写入已存在的文件" << FileName << "，请确认文件是否存在！" << endl;
+//        return;
+//    }
+//    
+//    int i;
+//    LineNode * p = NULL;
+//    if (type == "City" || type == "城市") {
+//        //第一行导入城市个数
+//        file << CityNum << endl;
+//        for (i = 0; i < CityNum; ++i) {
+//            file << CityList[i].CityName << endl;
+//        }
+//        cout << "将城市信息更新到 " << FileName << " 完成!" << endl;
+//    }//更新文件中的城市
+//
+//    else if (type == "Line" || type == "线路") {
+//        file << "出发城市|到达城市|班次名|出发时间|到达时间||||用时|||票价" << endl;
+//        for (i = 0; i < CityNum; ++i) {
+//            for (p = CityList[i].FirstLine; p != NULL; p = p->NextLine) {
+//                file << setw(8) << CityList[i].CityName << " " << setw(8) << p->EndName << " "<< setw(6) << p->Info->LineName << " ";
+//                cout.fill('0');
+//                file << p->Info->StartTime << " " << p->Info->EndTime << " " << p->Info->SpendTime << " " << setiosflags(ios_base::showpoint) << p->Info->SpendMoney << resetiosflags(ios_base::showpoint);
+//                cout.fill(' ');
+//            }
+//        }
+//        cout << "将线路信息更新到 " << FileName << " 完成!" << endl;  
+//    }//更新文件中的线路
+//    file.close();
+//}//updateFile 
 
 //输出所有城市
-void ALGraph::showCity() {
-    int i;
-    string a;
-    if (CityNum == 0) {
+void ALGraph::showAllCity() {
+
+    if (city_num == 0) {
         cout << "系统中没有任何城市的信息!" << endl;
         return;
     }
-    cout << "系统中有 " << CityNum  << " 座城市的信息" << endl;
-    for (i = 0; i < CityNum; ++i) {
-        cout << i << CityList[i].CityName << endl;
-    }
-}//showCity 
 
-void ALGraph::showLine() {
-    if (ArcNum == 0) {
+    cout << "系统中有 " << city_num  << " 座城市的信息" << endl;
+    auto it = m.cbegin();
+    while (it != m.cend()) {
+        cout << (*it).first.start_city_name << endl;
+        //cout << (*it).first.city_id << endl;  // 打印城市id
+        ++it;
+    }
+
+}//showAllCity 
+
+void ALGraph::showAllLine () {
+
+    if (line_num == 0) {
         cout << "系统中没有任何线路的信息！" << endl;
         return;
+    } else {
+        cout << "系统当前一共有 " << line_num << " 条线路的信息！" << endl;
     }
-    cout << "系统中有 " << ArcNum << " 条线路的信息" << endl;
-    cout << "出发城市|到达城市|班次名|出发时间|到达时间||||用时|||票价" << endl;
-    //输出所有城市线路 
-    int i;
-    LineNode * p = NULL;
-    for (i = 0; i < CityNum; ++i) {
-        p = CityList[i].FirstLine;
-        while(p) {
-            cout << setw(8) << CityList[i].CityName  << " " <<  setw(8) << p->EndName << " " << setw(6) << p->Info->LineName << " ";
-            cout.fill('0');
-            cout << p->Info->StartTime << " " << p->Info->EndTime << " " << p->Info->SpendTime << " " << setiosflags(ios_base::showpoint) << p->Info->SpendMoney << endl;
-            cout.fill(' '); //fill()不像setw(),需要手动调整
-            p = p->NextLine;
+    auto it = m.cbegin();
+    while (it != m.cend()) {
+        for (auto beg = (*it).second.cbegin(); beg != (*it).second.cend(); ++beg) {
+            
+            cout << (*beg);
+        }
+        ++it;
+    }
+}  // showAllLine 
+
+// 通过起点城市、终点城市、班次，查询一条线路信息
+vector<LineNode> ALGraph::getLineNode (const std::string sc, const std::string ec, const std::string amt) {
+
+    vector<LineNode> result;
+    auto it = m.find (Vnode(sc));
+
+    for(auto beg = it->second.begin(); beg != it->second.end(); ++beg) {
+
+        if ((beg->end_city_name == ec) && (beg->amount == amt)) {
+            result.push_back(*beg);
         }
     }
-}//showLine 
 
-//最少花费路径
-struct Node {
-    int id; //源顶点id
-    float money; //估算距离（费用）
-    //由于stl中优先队列的第三个参数是greater,而我们需要的是小顶堆，所以因重载运算符 <
-    friend bool operator < (struct Node a, struct Node b) {
-        return a.money > b.money;
-    }
-};
-void ALGraph::dijkstra_Money (int v0, int *parent, Node *dis) {
-    priority_queue<Node> q; //优化插入(更新)和取出最小值两个操作，队列存储最短距离与索引的编号
-    //parent[]记录每个顶点的父亲结点
-    //dis[]记录源点到每个估算距离，最后更新为源点到所有顶点的最短距离
-    bool visited[MaxCityNum]; //判断下标对应的顶点是否算出最短路径或者说是否在最短路径树中
-    //初始化
-    int i;
-    for (i = 0; i < CityNum; ++i) {
-        dis[i].id = i;
-        dis[i].money = INF;
-        parent[i] = -1; //每个顶点都没有父结点
-        visited[i] = false; //都未找到最短路
-    }
-    dis[v0].money = 0; //源点到源点最短路权值为0
-    q.push(dis[v0]); //压入队列
-    while (!q.empty()) { //队列空说明完成了求解v0到其余各顶点的最短路径
-        Node cd = q.top(); //取最小估算距离顶点
-        q.pop();
-        int u = cd.id;
-           
-        if (visited[u]) { //被标记了，就无需对其进行更新最短距离等等操作
-            continue;  
-        }
-        visited[u] = true;
-        LineNode *p = CityList[u].FirstLine;
-        //松弛操作
-        while(p) { //找所有与它相邻的顶点，进行松弛操作，更新估算距离，压入队列
-            int v = searchCityNum(p->EndName);
-            float m = p->Info->SpendMoney;
-            if (!visited[v] && dis[v].money > dis[u].money + m) {
-                dis[v].money = dis[u].money + m;
-                parent[v] = u;
-                q.push(dis[v]);
-            }
-            p = p->NextLine;
-        }
-    }// while (!q.empty()) 
-}//dijkstra_Money
+    return result;
+}  // getLineNode
 
-//最少时间路径
-struct Node1 {
-    int id; //源顶点id
-    int tt; //估算距离(时间)
-    Time et; //到达时间
-    friend bool operator < (struct Node1 a, struct Node1 b){
-        return a.tt > b.tt;
-    }
-};
-int ALGraph::timeTransWeight (const Time& t) {
-    return (t.day*24 + t.hour)*60 + t.minute;
-}
+// 输出从起点城市到终点城市的线路
+std::vector<std::vector<LineNode>> ALGraph::getPathsByCity (const std::string &sc, const std::string &ec) {
 
-void ALGraph::dijkstra_Time (int v0, int *parent, Node1 *dis) {
-    priority_queue<Node1> q1; 
-    //parent[]记录每个顶点的父亲结点
-    //dis[]记录源点到每个估算距离，最后更新为源点到所有顶点的最短距离
-    bool visited[MaxCityNum]; //判断下标对应的顶点是否算出最短路径或者说是否在最短路径树中
-    int i;
-    for (i = 0; i < CityNum; ++i) {
-        dis[i].id = i;
-        dis[i].tt = INF;
-        dis[i].et = {0, 0, 0};
-        parent[i] = -1; //都一个顶点都没有父结点
-        visited[i] = false; //都未找到最短路径
-    }
-    dis[v0].tt = 0;
-    q1.push(dis[v0]);
-    while (!q1.empty()) {
-        Node1 cd = q1.top(); //取出最短距离的点的序号
-        q1.pop();
-        int u = cd.id;
+    cout << "正在查询从" << sc << "到" << ec << "的线路信息！" << endl;
 
-        if (visited[u]) {
-            continue;
-        }
-        visited[u] = 1;
+    if (line_num == 0) {
+        cout << "系统中没有任何线路！" << endl;
+        return vector<vector<LineNode>>();
+    } 
 
-        LineNode *p = CityList[u].FirstLine;
-        //找出所有相邻点，进行松弛操作，即更新dis
-        while (p) {
-            int v = searchCityNum(p->EndName);
-            int t = timeTransWeight(p->Info->SpendTime);
-            Time st = p->Info->StartTime; //本条线路开始时间
-            //计算中转的时间开销
-            if (u != v0) { //注意源点到任何点都没有中转时间
-                int change = timeTransWeight(st - dis[u].et); //当前路线的开车时间-始发站的上一到站时间 
-                t += change;
-            }
-            if (!visited[v] && dis[v].tt > dis[u].tt + t) {
-                dis[v].tt = dis[u].tt + t;
-                dis[v].et = p->Info->EndTime;
-                parent[v] = u;
-                q1.push(dis[v]);
-            }
-            p = p->NextLine;
-        }//while (p)
-    }//while (!q1.empty()) 
-}//dijkstra_Time
-
-//调用并打印最短路经
-void ALGraph::showShortestPath (const string type){
-    string StartCity, EndCity;
-    int StartNum, EndNum;
-    //确定出发城市
-    showCity();
-    cout << "城市列表如上，请输入出发城市：";
-    cin >> StartCity;
-    StartNum = searchCityNum(StartCity);
-    //输入城市不存在
-    while (StartNum == -1) {
-        cout << "查询不到该城市，请再次输入出发城市：" << endl;
-        cin >> StartCity;
-        StartNum = searchCityNum(StartCity);
-    }
-    //确定到达目的城市
-    showCity();
-    cout << "城市列表如上，请输入目的城市：";
-    cin >> EndCity;
-    EndNum = searchCityNum(EndCity);
-    //输入城市不存在
-    while (EndNum == -1) {
-        cout << "查询不到该城市，请再次输入目的城市：" << endl;
-        cin >> EndCity;
-        EndNum = searchCityNum(EndCity);
-    }
-
-    int path[MaxCityNum]; //记录每个顶点的父亲结点，相当于是一条路径
-    int time_minute = 0; //起始地到达目的地的最少时间， 单位:分钟
-    float money_yuan = 0; //起始地到达目的地的最少费用，单位:元
-
-    if (type == "Money") {
-        Node dis[MaxCityNum];
-        dijkstra_Money(StartNum, path, dis);
-        money_yuan = dis[EndNum].money;
-    }
+    auto it = m.find(sc);
+    if (it == m.cend()) {
+        cout << "没有任何从" << sc << "出发的线路！" << endl;
+        return vector<vector<LineNode>> ();
+    } 
     else {
-        Node1 dis[MaxCityNum];
-        dijkstra_Time(StartNum, path, dis);
-        time_minute = dis[EndNum].tt;
+        if ((*it).second.size() == 0) {
+            cout << "没有任何从" << sc << "到其他城市的线路！" << endl;
+            return vector<vector<LineNode>> ();
+        }
+        
+        std::vector<std::vector<LineNode> > result;  // 存放 sc 到 ec 的多条路径
+
+        auto vec = (*it).second;
+        for (auto beg = vec.cbegin(); beg != vec.cend(); ++beg) {
+
+            if ((*beg).end_city_name == ec) {
+
+                vector<LineNode> direct_path;
+                direct_path.push_back(*beg);
+                result.push_back(direct_path);
+                continue;
+            }
+        
+            vector<LineNode> path;  // 用于DFS时存储路径
+            set<string> visited_1;  // 利用班次号判断一条路线是否已被访问
+            //set<pair<string, string>> visited_2;  // 如果只用班次号的 visited 会有 BUG, 会不断重入同一个城市，
+                                                // （还是有BUG）解决办法是综合利用"班次" + "pair<终点，起点>" 去环
+                                                //              还是有 BUG，无法去掉间接的环，以及错剪问题 
+            set<string> visited_2;  // 用城市名去环，判断邻接边的"end_city_name"是否已在 visit_2 中，
+                                    // 如果存在，说明加入该边的话就会入环，因此不加入该边，以达到不重入旧城市的目的
+            
+            // 自定义DFS根节点访问操作，比如这里的存储路径
+            path.push_back(*beg);
+            visited_1.insert (beg->amount);
+            //visited_2.insert (make_pair(beg->end_city_name, beg->start_city_name));
+            
+            visited_2.insert (beg->start_city_name);  // set 能一直保持建唯一，所以不用担心插入重复键的问题
+            //visited_2.insert (beg->end_city_name);
+
+            while (!path.empty()) {
+                LineNode lnode = path.back();
+                
+                //访问相邻的线路，并在 visited 中标记
+                vector<LineNode> possible_way = m.at(Vnode(lnode.end_city_name));
+                std::size_t i;
+                for (i = 0; i < possible_way.size(); ++i) {
+
+                    auto n = possible_way[i];
+                    //if (visited.find(n.amount) == visited.end()) {
+                    //if (( visited_1.find(n.amount) == visited_1.end() ) &&
+                    //    ( visited_2.find(make_pair(n.start_city_name, n.end_city_name)) == visited_2.end() )) {
+                    if (( visited_1.find(n.amount) == visited_1.end() ) &&
+                        ( visited_2.find(n.end_city_name) == visited_2.end() )) {
+
+                            path.push_back(n);
+                            visited_1.insert (n.amount);
+                            //VISITED.insert (make_pair(n.start_city_name, n.end_city_name));
+                            //VISITED.insert (make_pair(n.end_city_name, n.start_city_name));
+                            //visited_2.insert (make_pair(n.end_city_name, n.start_city_name));
+                            visited_2.insert (n.start_city_name);
+                            //cout << "被加入的边的开始城市为" << n.start_city_name << "，此后该城市不可访问" << endl;
+                            //visited_2.insert (n.end_city_name);
+                            //cout << "被加入的边的末尾城市为" << n.start_city_name << endl;
+                            
+
+                        if (n.end_city_name == ec) {  // 在这里自定义DFS的访问操作，比如保存路径
+                            result.push_back(path);
+                            path.pop_back();
+                            break;  // 必须 break，不然就变成广度遍历了
+                        } 
+                        else {
+                            break;  // 必须 break，不然就变成广度遍历了
+                        }
+                    }
+                }
+
+                // 当前指向的节点没有邻边，或所有结点都已经被访问
+                if (i == possible_way.size()) {
+                    path.pop_back();
+                }
+            }
+        }
+
+        return result;
     }
 
-    //若v0 到 EndCity 不存在路，即EndCity 在最短路径树中没有父结点
-    if (path[EndNum] == -1) {
-        cout << "对不起，从" << StartCity << "到" << EndCity << "暂时没有路线到达！" << endl;
+} // getPathsByCity
+
+// 打印从起点城市到终点城市的所有路径
+void ALGraph::printPathsByCity (const std::string &sc, const std::string &ec) {
+
+    auto path_vec = getPathsByCity(sc, ec);
+
+    if (path_vec.size() == 0) {
+        cout << "从" << sc << "到" << ec << "并没有路径！" << endl;    
         return;
     }
-    else {
-        stack<int> s;
-        int step = EndNum;
-        while (step != StartNum) {
-            s.push(step);
-            step = path[step];
+
+    unsigned i = 0;
+    for (auto path : path_vec) {
+
+        ++i;
+        cout << "从" << sc << "到" << ec<< "的第" << i << "条路径如下：" << endl;
+        for (auto line : path) {
+
+                    cout << line;
         }
-        int father = step;
-        int child;
+    }
+}  // printPathsByCity
 
-        //输出最省钱路径
-        if (type == "Money") {
-            cout << "最省钱路径" << endl;
-            int tt = 0; //total time,总时间开销
-            Time et = {0, 0, 0};
-            while (!s.empty()) {
-                child = s.top();
-                s.pop();
-                LineNode *p = CityList[father].FirstLine;
-                float mm = INF; //min money,当前记录到的最少金钱,不是总金钱
-                int i = 0;
-                int count; //记录指针移动的次数，方便定位
-                while (p) {
-                    if (p->EndName == CityList[child].CityName && mm >= p->Info->SpendMoney) {
-                        mm = p->Info->SpendMoney;
-                        count = i;
-                    }
-                    p = p->NextLine;
-                    ++i;
-                }
-                p = CityList[father].FirstLine;
-                i = 0;
-                while (i != count) {
-                    p = p->NextLine;
-                    ++i;
-                }
-                tt += timeTransWeight(p->Info->SpendTime);
-                if (father != StartNum) {
-                    tt = tt + timeTransWeight(p->Info->StartTime - et);
-                    cout << "需要中转等待 " << timeTransWeight(p->Info->StartTime - et) << "分钟！" << endl;
-                }
-                    cout << setw(8) << CityList[father].CityName << " " << setw(8) << p->EndName << " " << setw(6) << p->Info->LineName << " ";
-                    cout.fill('0');
-                    cout << p->Info->StartTime << " " << p->Info->EndTime << " " << p->Info->SpendTime << " " << setiosflags(ios_base::showpoint) << p->Info->SpendMoney << endl; 
-                    cout.fill(' ');
+// 输出从起点城市到终点城市，中转次数最少的路径
+void ALGraph::printLeastTransferPath (const std::string &sc, const std::string &ec) {
 
-                    et = p->Info->EndTime;
-                    father = child;
-                }//while(!s.empty())
-                cout << "一共花费" << money_yuan << "元和" << tt << "分钟！" << endl;
-            }//输出最省钱路径
+    if ((!ifCityExist(sc)) && (!ifCityExist(ec))) {
+        cout << "系统中未存在" << sc << "和" << ec << "这两座城市，请先添加这两座城市！" << endl;
+        return;
+    }
 
-        //输出最省时间的路径
-        else {
-            cout << "最省时间路径: " << endl;
-            float mm = 0; //总共需要的金钱
-            Time et = {0, 0, 0};
-            while (!s.empty()) {
-                child = s.top();
-                s.pop();
-                LineNode *p = CityList[father].FirstLine;
-                int tt = INF; //当前记录到的最小时间,不是总时间
-                int ot = 0; //ot 是算上换乘的总时间
-                int i = 0, count; //count记录指针移动的次数，方便定位
-                while (p) {
-                    if (p->EndName == CityList[child].CityName) {
-                        if (!s.empty() && child != EndNum) {
-                            ot = timeTransWeight(p->Info->SpendTime) + timeTransWeight(p->Info->StartTime - et);
-                        }
-                        else {
-                            ot = timeTransWeight(p->Info->SpendTime);
-                        }
-                        if (tt >= ot) {
-                            tt = ot;
-                            count = i;
-                        }
-                    }
-                    p = p->NextLine;
-                    ++i;
-                }//while (p)
-                p = CityList[father].FirstLine;
-                i = 0;
-                while (i != count) {
-                    p = p->NextLine;
-                    mm += p->Info->SpendMoney;
-                    ++i;
+    if (!ifCityExist(sc)) {
+        cout << "系统中未存在" << sc << "这座城市，请先添加该城市！" << endl;
+        return;
+    }
+
+    if (!ifCityExist(ec)) {
+        cout << "系统中未存在" << ec << "这座城市，请先添加该城市！" << endl;
+        return;
+    }
+
+    auto path_vec = getPathsByCity(sc, ec);
+
+    if (path_vec.size() == 0) {
+        cout << "从" << sc << "到" << ec<< "没有可以通行的路径！" << endl;
+        return;
+    }
+
+    size_t pos = -1;
+    size_t min_size = INT_MAX;
+
+    for (size_t i=0; i < path_vec.size(); ++i) {
+
+        if (path_vec[i].size() < min_size) {
+            min_size = path_vec[i].size();
+            pos = i;
+        }
+    }
+
+   vector<LineNode> min_transfer_path = path_vec.at(pos);
+
+   cout << "从" << sc << "到" << ec << "的中转次数最少的路径如下：" << endl;
+   //cout << "出发城市|到达城市|班次名|出发时间|到达时间||||用时|||票价" << endl;
+   for (auto line : min_transfer_path) {
+
+       cout << line;
+   }
+   cout << "从" << sc << "到" << ec << "的最少中转次数为：" << min_transfer_path.size() << endl;
+
+}
+
+// 输出从起点城市到终点城市，总时间最短的线路
+void ALGraph::printLeastTimePath (const std::string &sc, const std::string &ec) {
+
+    if ((!ifCityExist(sc)) && (!ifCityExist(ec))) {
+        cout << "系统中未存在" << sc << "和" << ec << "这两座城市，请先添加这两座城市！" << endl;
+        return;
+    }
+
+    if (!ifCityExist(sc)) {
+        cout << "系统中未存在" << sc << "这座城市，请先添加该城市！" << endl;
+        return;
+    }
+
+    if (!ifCityExist(ec)) {
+        cout << "系统中未存在" << ec << "这座城市，请先添加该城市！" << endl;
+        return;
+    }
+
+    auto path_vec = getPathsByCity(sc, ec);
+
+    if (path_vec.size() == 0) {
+        cout << "从" << sc << "到" << ec<< "没有可以通行的路径！" << endl;
+        return;
+    }
+
+    int min_time_path_idx = -1;
+    int min_time_sum = INT_MAX;
+    int path_num_idx = -1;
+    for (const auto &path : path_vec) {
+        
+        ++path_num_idx;
+        
+        int time_sum = 0;
+        for (size_t i=0; i < path.size(); ++i) {
+            if (i == 0) {  // 某路径的第一条线路，不用考虑隔天等待的问题
+                time_sum += path.at(i).spend_time.getTotalMintue();
+            }
+            else {  // 需要考虑中转时，隔天等待的问题
+                if (path.at(i-1).end_time < path.at(i).start_time) {  // 可以当天中转下一班次，不用等待
+
+                    time_sum += path.at(i).spend_time.getTotalMintue();
                 }
-                if (father != StartNum) {
-                    cout << "需要中转等待 " << timeTransWeight(p->Info->StartTime - et) << "分钟！" << endl;
+                else {  // 不能当天中转下一班次，需要隔一天
+
+                    Time next_station_start_time = path.at(i).start_time;
+                    next_station_start_time.day += 1; 
+                    time_sum = time_sum + (next_station_start_time - path.at(i-1).end_time).getTotalMintue()
+                                    + path.at(i).spend_time.getTotalMintue();
                 }
-                cout << setw(8) << CityList[father].CityName << " " << setw(8) << p->EndName << " " << setw(6) << p->Info->LineName << " ";
-                cout.fill('0');
-                cout << p->Info->StartTime << " " << p->Info->EndTime << " " << p->Info->SpendTime << " " << setiosflags(ios_base::showpoint) << p->Info->SpendMoney << endl; //showpoint只对float有效,不用手动取消
-                cout.fill(' ');
+            }
+        }
+        if (time_sum < min_time_sum) {
+            min_time_sum = time_sum;
+            min_time_path_idx = path_num_idx;
+        }
+    }
+
+    cout << "从" << sc << "到" << ec << "的耗时最少的路径如下：" << endl;
+    for (auto line : path_vec.at(min_time_path_idx)) {
+        cout << line;
+    }
+    Time min_time_obj = getTimeByMinute(min_time_sum);
+    cout << "从" << sc << "到" << ec << "的最少耗时为：" << min_time_obj.day << "天"
+       << min_time_obj.hour << "小时" << min_time_obj.minute << "分钟！" << endl;
+
+}
+
+// 输出某个城市到其他各城市的花费最少的路线
+void ALGraph::printLeastMoneyPath (const std::string &sc, const std::string &ec) {
+    
+    if ((!ifCityExist(sc)) && (!ifCityExist(ec))) {
+        cout << "系统中未存在" << sc << "和" << ec << "这两座城市，请先添加这两座城市！" << endl;
+        return;
+    }
+
+    if (!ifCityExist(sc)) {
+        cout << "系统中未存在" << sc << "这座城市，请先添加该城市！" << endl;
+        return;
+    }
+
+    if (!ifCityExist(ec)) {
+        cout << "系统中未存在" << ec << "这座城市，请先添加该城市！" << endl;
+        return;
+    }
+
+    
+    struct cmp_pair_ec_and_amount_by_ec {
+    	bool operator() (const pair<string, string> &x, const pair<string, string> &k) const {
+    			if(x.first >= k.first)
+    			return false;  //STL源码规定必须这么返回，而不能改成 true
+    			else
+    			return true;
+    	}
+    };
+
+    // 这里采用 dijkstra 算法求解
+    // 其实也可以采用DFS求解，比如调用 getPathsByCity, 然后计算一下钱再比个大小就行
+    set<string> visited;  // 利用城市名的唯一性建立 visited，表示该结点已计算出最小距离，无需再次计算
+    map<string, float> distanced;  // distanced 为"城市名 -> 估计最小距离"的映射
+    map<pair<string, string>, string, cmp_pair_ec_and_amount_by_ec> 
+        parent;  // parent 存储路径上结点的关系，可以沿 ec 一直找到 sc，映射结构是 <终点城市, 班次> -> 起点城市
+    vector<LineNode> result;  // 存储最终要打印的路径
+
+    // 初始化 distance 信息集合，以用于松弛操作
+    // 不需要初始化 visit 和 parent，visit 只需要判断城市名在不在 set 里就能知道该城市是否被访问，
+    // parent 只需要判断 map 中有没有某城市名这个键就知道路径怎么走
+    auto m_iter = m.cbegin();
+    while (m_iter != m.cend()) {
+        distanced.insert ( {(*m_iter).first.start_city_name, INT_MAX} );
+        ++m_iter;
+    }
+
+    // 初始化 distanced 中起点城市的信息
+    auto _dist_iter = distanced.find(sc);
+    if (_dist_iter != distanced.end()) {
+        (*_dist_iter).second = 0;
+    }
+
+    
+    for (int i=0; i < city_num; ++i) {
+
+        map<string, float>::const_iterator min_dist_iter = distanced.cend();  // 指向 dist 中的值最小的结点
+        float min_dist_value = INT_MAX;
+
+        auto dist_iter = distanced.cbegin();
+        while (dist_iter != distanced.cend()) {
+            
+            if ((visited.find(dist_iter->first) == visited.cend()) && ((dist_iter->second) <= min_dist_value)) {
                 
-                et = p->Info->EndTime;
-                father = child;
-            }//while(!s.empty())
-            cout << "一共花费" << mm << "元和" << time_minute << "分钟！" << endl; 
-        }//输出最省时间的路径
-    }//有路径
-}//showShortestPath
+                min_dist_value = dist_iter->second;
+                min_dist_iter = dist_iter;
+            }
+            ++dist_iter;
+        }
+
+        if (min_dist_iter == distanced.cend()) {
+            break;  // 起点到所有其他结点的最小距离都计算完毕
+        }
+        
+        visited.insert (min_dist_iter->first);
+        //cout << min_dist_iter->first << "  " << min_dist_iter->second << endl;
+        visited.insert (min_dist_iter->first);
+
+        // 刚刚被访问的最小距离的结点为 m.at(min_dister->first)
+        // 执行松弛操作，更新该结点所有邻接结点的最小估计距离
+        const auto &vec = m.at (min_dist_iter->first);
+        for (auto lnode : vec) {
+            
+            if (visited.find(lnode.end_city_name) == visited.cend()) {
+                if ((min_dist_iter->second + lnode.spend_money) < distanced.at(lnode.end_city_name)) {
+
+                    distanced[lnode.end_city_name] = min_dist_iter->second + lnode.spend_money;
+                    auto __it_parent = parent.find(make_pair(lnode.end_city_name, lnode.amount));
+                    if (__it_parent == parent.end()) {
+                        parent[make_pair(lnode.end_city_name, lnode.amount)] = lnode.start_city_name;
+                    }
+                    else {
+                        // 如果键已存在，则删除旧键，因为旧键中的 amount 是旧信息，而且没法被直接覆盖
+                        parent.erase(__it_parent);  
+                        parent[make_pair(lnode.end_city_name, lnode.amount)] = lnode.start_city_name;
+                    }
+                }
+            }
+        }
+    }
+
+    //cout << "我到 1104 行了！！！" << endl;
+    // （已解决）有 BUG! parent 得到的数据并不是正确的数据：{{南昌, T162}, 永安}, {{上海, T184}, 南昌}
+    //     而是 BUG 数据：{{南昌, T162}, 永安}, {{福州, T161}, 永安}
+    //cout  << "执行完 dijkstra 后，parent 中的元素个数是" << parent.size() << endl;
+    //for (auto __it = parent.cbegin(); __it != parent.cend(); ++__it) {
+    //    cout << __it->first.first << "  " << __it->first.second << "  " << __it->second << endl;
+    //}
+
+    // 执行完 dijkstra 算法后，根据 parent 得到最优路径
+    // 假设 sc = 福州，ec = 南昌，求福州到南昌花费最少的路线
+    // parent 中的数据格式为：
+    //     {(福州, T131), 永安}, {(上海, T106), 福州}
+    auto iter_parent = parent.find(make_pair(ec, ""));
+
+    // （已解决）输出结果是错的！此时 dist["南昌"] = 26, 南昌的前一个结点应该是永安
+    //cout << "代码到了1118 行！" << endl;
+    //cout << distanced.at("南昌") << endl;
+    //cout << iter_parent->second << "    "  << iter_parent->first.first << "    " << iter_parent->first.second << endl;
+
+    if (iter_parent == parent.cend()) {
+        
+        cout << "系统中没有路径可以从" << sc << "到达" << ec << "！" << endl; 
+    } 
+    else {
+        // 提取 parent 中存储的路径，存入最终的结果 result
+        while (iter_parent != parent.cend()) {
+            
+            auto ret = getLineNode (iter_parent->second, iter_parent->first.first, iter_parent->first.second);
+            result.push_back(ret.back());
+            iter_parent = parent.find(make_pair(iter_parent->second, ""));
+        }
+
+        std::reverse (result.begin(), result.end());  // 由于 parent 中线路是反向存储，要将 result 中的线路反转
+        cout << "从" << sc << "到" << ec << "的花费最少的路径如下：" << endl;
+        //cout << "出发城市|到达城市|班次名|出发时间|到达时间||||用时|||票价" << endl;
+        for (auto line : result) {
+
+            cout << line;
+            //cout << setw(8) << line.start_city_name << " " <<  setw(8) << line.end_city_name 
+            //    << " " << setw(6) << line.amount << " ";
+            //cout.fill('0'); // 修改 fill() 的默认填充符为 0
+            //cout << line.start_time << " " << line.end_time << " " << line.spend_time << " " 
+            //    << setiosflags(ios_base::showpoint) << line.spend_money << endl;
+            //cout.fill(' '); // fill() 不像 setw(), 需要手动调整
+            //cout << endl;
+        }
+        cout << "从" << sc << "到" << ec << "的最少花费" << distanced.at(ec) << "元！" << endl;
+        
+    }
+    
+}
+
+//int main() {
+//
+//    ALGraph graph;
+//    graph.addLine();
+//    graph.addCityFromFile("TrainCity.txt");
+//    graph.addLineFromFile("Train.txt");
+//    //graph.showAllLine();
+//
+//    graph.printPathsByCity ("永安", "上海");
+//    
+//    //graph.printLeastTransferPath ("永安", "上海");
+//    
+//    graph.printLeastTimePath("永安", "上海");
+//    
+//    //graph.printLeastMoneyPath ("永安", "上海");  
+//
+//
+//    //++graph.city_num;
+//    //++graph.line_num;
+//    //cout << "当前系统中的城市与线路总数分别为: " << graph.city_num << " " << graph.line_num << endl;
+//
+//    return 0;
+//}
+

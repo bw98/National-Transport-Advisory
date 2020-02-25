@@ -1,25 +1,22 @@
-/*************************************************************************
-	> File Name: main.cpp
-	> Author: bw98
-	> Mail: 
-	> Created Time: 2018年01月04日 星期四 10时59分38秒
- ************************************************************************/
 #include<iostream>
 #include<string>
 #include"ALGraph.h"
-using namespace std;
 
-string Account = "123456";
-string Password = "123456";
-ALGraph ALG[2] = {ALGraph(30), ALGraph(50)};
-char tool[2][7] = {"Flight", "Train"};
-char cityfile[2][15] = {"FlightCity.txt", "TrainCity.txt"};
-char linefile[2][11] = {"Flight.txt", "Train.txt"};
+using std::cin;
+using std::cout;
+using std::endl;
+using std::istream;
+using std::ostream;
+using std::string;
+
+string Account = "admin";
+string Password = "admin";
+ALGraph graph;
 void admin();
 bool login();
 void user();
 void changePassword();
-void adminALG(int option);
+void adminALG();
 
 
 int main(void) {
@@ -31,18 +28,22 @@ int main(void) {
         cout << "    1.管理员" << endl << "    2.普通用户" << endl;
         cout << "请输入数字(0 for exit)：";
         cin >> identity;
-        if (!identity) {break;}
+        if (!identity) {
+            break;
+        }
         switch(identity) {
             case 1:
                 admin();
                 system("clear");
                 break;
+
             case 2:
                 user();
                 system("clear");
                 break;
+
             default:
-                cout << "输入不正确，请重新输入" << endl;
+                cout << "输入不正确，请重新输入!" << endl;
                 break;
         }//switch(identity)
     }//while (indentity)
@@ -61,19 +62,20 @@ void admin() {
     int option = 1;
     while (option) {
         cout << "请输入你的选项：" << endl;
-        cout << "1.更改密码" << endl << "2.全国航班的相关操作" << endl << "3.全国列车班次的相关操作" << endl;
+        cout << "1.更改密码" << endl << "2.全国交通图的相关操作" << endl;
         cout << "请输入数字(按0返回选择身份界面)：" << endl;
         cin >> option;
         cout << endl;
         system("clear");
-        if (!option) {break;}
+        if (!option) {
+            break;
+        }
         switch (option) {
             case 1:
                 changePassword();
                 break;
             case 2:
-            case 3:
-                adminALG(option);
+                adminALG();
                 system("clear");
                 break;
             default:
@@ -121,80 +123,113 @@ void changePassword () {
     cout << "修改密码成功！" << endl;
 }//changePassword
 
-//管理员对航班图、列车图的操作函数
-void adminALG (int option) {
+//管理员管理交通图的操作函数
+void adminALG () {
     int func = 1;
     while (func) {
-        cout << "    现在修改的交通图是：" << tool[option-2] << endl;
         cout << "请选择下列操作之一" << endl;
-        cout << "    1.从文件中添加 " << tool[option-2] << " 城市" << endl;
-        cout << "    2.手动添加 " << tool[option-2] << " 城市" << endl;
-        cout << "    3.删除" << tool[option-2] << " 城市" << endl;
-        cout << "    4.从文件中添加" << tool[option-2] << " 线路" << endl;
-        cout << "    5.手动添加 " << tool[option-2] << " 线路" << endl;
-        cout << "    6.删除" << tool[option-2] << " 线路" << endl;
+        cout << "    1.从文件中添加城市" << endl;
+        cout << "    2.手动添加城市" << endl;
+        cout << "    3.删除城市" << endl;
+        cout << "    4.从文件中添加线路" << endl;
+        cout << "    5.手动添加线路" << endl;
+        cout << "    6.删除线路" << endl;
         cout << "    7.显示所有城市" << endl;
         cout << "    8.显示所有线路" << endl;
-        cout << "    9.保存修改到文件" << endl;
-	cout << "    10.查询花费最少的路径" << endl;
-        cout << "    11.查询耗时最少的路径" << endl;
+	    cout << "    9.查询两城市间，中转最少的路径" << endl;
+        cout << "    10.查询两城市间，花费最少的路径" << endl;
+        cout << "    11.查询两城市间，耗时最少的路径" << endl;
+        
         cout << "请输入数字(输入0退出操作界面)：";
         cin >> func;
         cout << endl;
         system("clear");
+
         //对应功能的调用
-        string name;
         if (!func) {
             break;
         }
+
+        // switch 内部不能定义对象，只能写在这里
+        // 否则报错：cannot jump from switch statement to this case
+        string file_name;
+        string city_name;
+        string sc;
+        string ec;
+        string amt;
         switch(func) {
             case 1:    
-                cout << "    1.从文件中添加 " << tool[option-2] << " 城市!" << endl;
-                ALG[option-2].addCityFromFile (cityfile[option-2]);
+                cout << "    1.从文件中添加城市（可选文件：FlightCity.txt, TrainCity.txt)，请输入文件名：";
+                cin >> file_name;
+                graph.addCityFromFile (file_name.c_str());
                 break;
             case 2:
-                cout << "    2.手动添加 " << tool[option-2] << " 城市!" << endl;
-                cin >> name;
-                ALG[option-2].addCity(name);
+                cout << "    2.手动添加城市!" << endl;
+                cout << "请输入城市名字：";
+                cin >> city_name;
+                graph.addCity(city_name);
                 break;
             case 3:
-                cout << "    3.删除" << tool[option-2] << " 城市!" << endl;
-                cin >> name;
-                ALG[option-2].delCity(name);
+                cout << "    3.删除城市!" << endl;
+                cin >> city_name;
+                graph.delCity(city_name);
                 break;
             case 4:
-                cout << "    4.从文件中添加" << tool[option-2] << " 线路!" << endl;
-                ALG[option-2].addLineFromFile (linefile[option-2]);
+                cout << "    4.从文件中添加路线（可选文件：Flight.txt, Train.txt），请输入文件名：";
+                cin >> file_name;
+                graph.addLineFromFile (file_name.c_str());
                 break;
             case 5:
-                cout << "    5.手动添加 " << tool[option-2] << " 线路!" << endl;
-                ALG[option-2].addLine();
+                cout << "    5.手动添加线路!" << endl;
+                graph.addLine();
                 break;
             case 6:
-                cout << "    6.删除" << tool[option-2] << " 线路!" << endl;
-                ALG[option-2].delLine(); //删除线路
+                cout << "    6.删除线路!" << endl;
+                cout << "请输入要删除线路的起点城市：" << endl;
+                cin >> sc;
+                cout << "请输入要删除线路的终点城市：" << endl;
+                cin >> ec;
+                cout << "请输入要删除线路的班次号：" << endl;
+                cin >> amt;
+                graph.delLine(sc, ec, amt); //删除线路
                 break;
             case 7:
                 cout << "    7.显示所有城市!" << endl;
-                ALG[option-2].showCity();
+                graph.showAllCity();
                 break;
             case 8:
                 cout << "    8.显示所有线路!" << endl;
-                ALG[option-2].showLine();
+                graph.showAllLine();
                 break;
             case 9:
-                cout << "    9.保存修改到文件!" << endl;
-                ALG[option-2].updateFile(cityfile[option-2], "City");
-                ALG[option-2].updateFile(cityfile[option-2], "Line");
-               break;
+	            cout << "    9.查询两城市间，中转最少的路径!" << endl;
+                cout << "输入要查询的起点城市：";
+                cin >> sc;
+                cout << "输入要查询的终点城市：";
+                cin >> ec;
+                graph.printLeastTransferPath(sc, ec);
+                break;
+            //case 9:
+            //    cout << "    9.保存修改到文件!" << endl;
+            //    ALG[option-2].updateFile(cityfile[option-2], "City");
+            //    ALG[option-2].updateFile(cityfile[option-2], "Line");
+            //    break;
 	        case 10:
-		    cout << "    10.查询花费最少的路径!" << endl;
-		    ALG[option-2].showShortestPath("Money");
-		    break;
+		        cout << "    10.查询两城市间，花钱最少的路径!" << endl;
+                cout << "输入要查询的起点城市：";
+                cin >> sc;
+                cout << "输入要查询的终点城市：";
+                cin >> ec;
+		        graph.printLeastMoneyPath(sc, ec);
+		        break;
 	        case 11:
-        	cout << "    11.查询耗时最少的路径!" << endl;
-		    ALG[option-2].showShortestPath("Time");
-		    break;
+        	    cout << "    11.查询两城市间，耗时最少的路径!" << endl;
+                cout << "输入要查询的起点城市：";
+                cin >> sc;
+                cout << "输入要查询的终点城市：";
+                cin >> ec;
+                graph.printLeastTimePath(sc, ec);
+		        break;
             default:
                 cout << "输入不正确，请重新输入" << endl;
                 break;
@@ -206,56 +241,64 @@ void adminALG (int option) {
 //用户登陆界面
 void user() {
     cout << "    开启普通用户模式" << endl << endl;
-    int t = 1, func = 1;
-    while (t) {
-        cout << "    选择你的出行方式！" << endl;
-        cout << "    1.飞机" << endl << "    2.火车" << endl;
-        cout << "请输入数字(输入0返回身份认证界面)：" << endl;
-        cin >> t;
-        if (!t) {
+    int func = 1;
+    while (func) {
+        cout << "    现在是全国交通图的信息查询！" << endl;
+        cout << "请选择下列操作之一" << endl;
+        cout << "    1.查询两城市间，花费最少的路径" << endl;
+        cout << "    2.查询两城市间，耗时最少的路径" << endl;
+        cout << "    3.显示所有城市" << endl;
+        cout << "    4.显示所有线路" << endl;
+        cout << "    5.查询两城市间，中转次数最少的路径" << endl;
+        cout << "请输入数字(按0返回选择身份选择界面):";
+        cin >> func;
+        if (!func) {
             break;
         }
-        if (t != 1 && t !=2) {
-            cout << "输入不正确，请重新输入！" << endl;
-            continue;
-        }
         cout << endl;
-        while (func) {
-            cout << "    现在是关于全国" << tool[t-1] << "的信息查询！" << endl;
-            cout << "请选择下列操作之一" << endl;
-            cout << "    1.查询花费最少的路径" << endl;
-            cout << "    2.查询耗时最少的路径" << endl;
-            cout << "    3.显示所有城市" << endl;
-            cout << "    4.显示所有线路" << endl;
-            cout << "请输入数字(按0返回选择交通工具界面):";
-            cin >> func;
-            if (!func) {
+
+        // switch 内部不能定义对象，只能写在这里
+        // 否则报错：cannot jump from switch statement to this case
+        string sc;
+        string ec;
+        switch(func) {
+            case 1: 
+                cout << "1.查询两城市间，花费最少的路径" << endl;
+                cout << "输入要查询的起点城市：";
+                cin >> sc;
+                cout << "输入要查询的终点城市：";
+                cin >> ec;
+                graph.printLeastMoneyPath(sc, ec);
                 break;
-            }
-            cout << endl;
-            switch(func) {
-                case 1: 
-                    cout << "1.查询花费最少的路径！" << endl;
-                    ALG[t-1].showShortestPath("Money");
-                    break;
-                case 2:
-                    cout << "2.查询耗时最少的路径！" << endl;
-                    ALG[t-1].showShortestPath("Time");
-                    break;
-                case 3:
-                    cout << "3.显示所有城市！" << endl;
-                    ALG[t-1].showCity();
-                    break;
-                case 4:
-                    cout << "4.显示所有线路！" << endl;
-                    ALG[t-1].showLine();
-                    break;
-                default:
-                    cout << "输入不正确，请重新输入！" << endl;
-                    break;
-            }//switch(func)
-            cout << endl;
-            
-        }//while(func)
-    }//while(t)
+            case 2:
+                cout << "2.查询两城市间，耗时最少的路径" << endl;
+                cout << "输入要查询的起点城市：";
+                cin >> sc;
+                cout << "输入要查询的终点城市：";
+                cin >> ec;
+                graph.printLeastTimePath(sc, ec);
+                break;
+            case 3:
+                cout << "3.显示所有城市！" << endl;
+                graph.showAllCity();
+                break;
+            case 4:
+                cout << "4.显示所有线路！" << endl;
+                graph.showAllLine();
+                break;
+            case 5:
+                cout << "5.查询两城市间，中转次数最少的路径" << endl;
+                cout << "输入要查询的起点城市：";
+                cin >> sc;
+                cout << "输入要查询的终点城市：";
+                cin >> ec;
+                graph.printLeastTransferPath(sc, ec);
+                break;
+            default:
+                cout << "输入不正确，请重新输入！" << endl;
+                break;
+        }//switch(func)
+        cout << endl;
+        
+    }//while(func)
 }//user 
